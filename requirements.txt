@@ -1,0 +1,9 @@
+# core
+torch
+torchvision
+optuna
+
+# static code analysis
+black
+isort
+pylint
