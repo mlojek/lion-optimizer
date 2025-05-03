@@ -2,6 +2,7 @@
 torch
 torchvision
 optuna
+pydantic
 
 # static code analysis
 black

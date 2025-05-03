@@ -1,0 +1,48 @@
+'''
+Data model of the experiment configuration.
+'''
+
+from enum import Enum
+from pydantic import BaseModel
+
+
+class OptimizerName(Enum):
+    '''
+    Enumeration of available graident optimizers.
+    '''
+
+    SGD = 'sgd'
+    "Stochastic gradient descent"
+
+    ADAM = 'adam'
+    "State-of-the-art Adam optimizer"
+
+    LION = 'lion'
+    "Our Lion optimizer implementation"
+
+
+class ModelName(Enum):
+    '''
+    Enumeration of neural network model architectures.
+    '''
+
+    RES_NET_50 = 'res_net_50'
+    'ResNet-50 architecture - residual network'
+
+    VIT_B_16 = 'vit_b_16'
+    'Vit-B 16 architecture - visual transformer'
+
+
+class ExperimentConfig(BaseModel):
+    '''
+    Configuration of an experiment.
+    '''
+
+    optimizer: OptimizerName
+    'Gradient optimizer to use'
+
+    learning_rate: float
+    'Learning rate of the optimizer'
+
+    model_name: ModelName
+    'Architecture of the deep learning model'
