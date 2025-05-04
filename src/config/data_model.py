@@ -13,13 +13,13 @@ class OptimizerName(Enum):
     """
 
     SGD = "sgd"
-    "Stochastic gradient descent"
+    "Stochastic gradient descent."
 
     ADAM = "adam"
-    "State-of-the-art Adam optimizer"
+    "State-of-the-art Adam optimizer."
 
     LION = "lion"
-    "Our Lion optimizer implementation"
+    "Our Lion optimizer implementation."
 
 
 class ModelName(Enum):
@@ -28,10 +28,22 @@ class ModelName(Enum):
     """
 
     RES_NET_50 = "res_net_50"
-    "ResNet-50 architecture - residual network"
+    "ResNet-50 architecture - residual network."
 
     VIT_B_16 = "vit_b_16"
-    "Vit-B 16 architecture - visual transformer"
+    "Vit-B 16 architecture - visual transformer."
+
+
+class EarlyStoppingConfig(BaseModel):
+    """
+    Configuration of the early stopping.
+    """
+
+    patience: int
+    "Number of epochs with no improvement in loss value before training is stopped early."
+
+    delta: float
+    "Minimum difference in loss value before training is stopped early."
 
 
 class ExperimentConfig(BaseModel):
@@ -40,10 +52,13 @@ class ExperimentConfig(BaseModel):
     """
 
     optimizer: OptimizerName
-    "Gradient optimizer to use"
+    "Gradient optimizer to use."
 
     learning_rate: float
-    "Learning rate of the optimizer"
+    "Learning rate of the optimizer."
 
     model_name: ModelName
-    "Architecture of the deep learning model"
+    "Architecture of the deep learning model."
+
+    early_stopping: EarlyStoppingConfig
+    "Configuration of the EarlyStopping component."
