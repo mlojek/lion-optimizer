@@ -5,8 +5,8 @@ Model training experiment script.
 from logging import Logger
 
 from torch.nn import Module
-from torch.optim.optimizer import Optimizer
 from torch.optim import SGD, AdamW
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision.datasets.imagenet import ImageNet
 from torchvision.models import resnet50, vit_b_16
