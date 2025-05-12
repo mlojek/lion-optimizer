@@ -32,6 +32,7 @@ def train_model(
     logger: Logger,
     *,
     random_seed: int = 42,
+    device: torch.device = 'cpu'
 ) -> nn.Module:
     """
     Train the model according to the configuration.
@@ -40,6 +41,7 @@ def train_model(
         config (ExperimentConfig): Configuration of the experiment.
         logger (Logger): Logger to log information to.
         random_seed (int): The random seed to use for all stochastic processes.
+        device ()
 
     Returns:
         Module: Trained pyTorch model.
@@ -52,6 +54,8 @@ def train_model(
             model = vit_b_16()
         case _:
             raise ValueError(f"Invalid model name {config.model_name.value}!")
+        
+    model.to(device)
 
     match config.optimizer_name:
         case OptimizerName.SGD:
@@ -107,6 +111,7 @@ def train_model(
     early_stopping = EarlyStopping(**config.early_stopping.model_dump())
 
     for epoch in range(config.epochs):
+        print(f'started epoch {epoch}')
         # Training step
         model.train()
 
@@ -130,6 +135,8 @@ def train_model(
         # Compute train loss and accuracy
         train_avg_loss = train_loss / train_num_samples
         train_accuracy = train_correct_samples / train_num_samples
+
+        print('done train part')
 
         # Validation step
         with torch.no_grad():
@@ -190,4 +197,13 @@ if __name__ == "__main__":
     )
     logger = logging.getLogger(__name__)
 
-    trained_model = train_model(config, logger)
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")  # apple silicon
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    logger.info('Using device %s', device)
+
+    trained_model = train_model(config, logger, device=device)
