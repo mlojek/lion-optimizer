@@ -36,13 +36,19 @@ class Lion(Optimizer):
         """
 
         if lr <= 0.0:
-            raise ValueError(f"Learning rate has to be positive, got invalid value {lr}!")
-    
+            raise ValueError(
+                f"Learning rate has to be positive, got invalid value {lr}!"
+            )
+
         if not 0.0 <= beta1 < 1.0:
-            raise ValueError(f"Invalid beta1 value: {beta1}, expected value between 0.0 and 1.0")
-    
+            raise ValueError(
+                f"Invalid beta1 value: {beta1}, expected value between 0.0 and 1.0"
+            )
+
         if not 0.0 <= beta2 < 1.0:
-            raise ValueError(f"Invalid beta2 value: {beta2}, expected value between 0.0 and 1.0")
+            raise ValueError(
+                f"Invalid beta2 value: {beta2}, expected value between 0.0 and 1.0"
+            )
 
         super().__init__(
             params,
