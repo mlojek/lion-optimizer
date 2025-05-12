@@ -51,7 +51,7 @@ class ExperimentConfig(BaseModel):
     Configuration of an experiment.
     """
 
-    optimizer: OptimizerName
+    optimizer_name: OptimizerName
     "Gradient optimizer to use."
 
     learning_rate: float
@@ -62,3 +62,9 @@ class ExperimentConfig(BaseModel):
 
     early_stopping: EarlyStoppingConfig
     "Configuration of the EarlyStopping component."
+
+    epochs: int
+    "Number of epochs to train the model for."
+
+    batch_size: int
+    "Number of samples per one batch."
