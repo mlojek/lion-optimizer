@@ -2,12 +2,18 @@
 Model training experiment script.
 """
 
+import argparse
+import json
+import logging
 from logging import Logger
+from pathlib import Path
 
 import torch
-from torch.nn import Module
+from torch import nn
 from torch.optim import SGD, AdamW
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
+from torchvision import datasets, transforms
+from torchvision.datasets import FakeData
 from torchvision.datasets.imagenet import ImageNet
 from torchvision.models import resnet50, vit_b_16
 
@@ -20,18 +26,25 @@ from ..optimizers.lion import Lion
 from ..utils.early_stopping import EarlyStopping
 
 
-# TODO random seed
-# TODO logger
-def train_model(config: ExperimentConfig) -> Module:
+# TODO CUDA support
+def train_model(
+    config: ExperimentConfig,
+    logger: Logger,
+    *,
+    random_seed: int = 42,
+) -> nn.Module:
     """
     Train the model according to the configuration.
 
     Args:
         config (ExperimentConfig): Configuration of the experiment.
+        logger (Logger): Logger to log information to.
+        random_seed (int): The random seed to use for all stochastic processes.
 
     Returns:
         Module: Trained pyTorch model.
     """
+    # TODO random state for weights using random seed
     match config.model_name:
         case ModelName.RES_NET_50:
             model = resnet50()
@@ -52,9 +65,40 @@ def train_model(config: ExperimentConfig) -> Module:
 
     optimizer = optimizer_class(model.parameters(), lr=config.learning_rate)
 
-    dataset = ImageNet()
-
     # TODO get imagenet dataset
+    # dataset = ImageNet()
+    dataset = datasets.FakeData(
+        size=10000,
+        image_size=(3, 224, 224),
+        num_classes=1000,
+        transform=transforms.ToTensor(),
+    )
+
+    # Compute split lengths
+    val_size = int(0.2 * len(dataset))
+    train_size = len(dataset) - val_size
+
+    # Reproducible split
+    generator = torch.Generator().manual_seed(random_seed)
+    train_dataset, val_dataset = random_split(
+        dataset, [train_size, val_size], generator=generator
+    )
+
+    # Create dataloaders
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
+
+    # TODO load ImageNet train
+    # TODO split train into train and val using random seed
+    # TODO shuffle using random state
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
@@ -74,7 +118,6 @@ def train_model(config: ExperimentConfig) -> Module:
             optimizer.zero_grad()
             y_predicted = model(x_batch)
             loss = loss_function(y_predicted, y_batch)
-            model.grad_counter += 1
             loss.backward()
             optimizer.step()
 
@@ -89,13 +132,31 @@ def train_model(config: ExperimentConfig) -> Module:
         train_accuracy = train_correct_samples / train_num_samples
 
         # Validation step
-        # TODO
-        val_avg_loss, val_accuracy = model.evaluate(val_loader, loss_function)
+        with torch.no_grad():
+            model.eval()
+
+            loss_value = 0
+            num_correct_samples = 0
+            num_all_samples = 0
+
+            for x, y in val_loader:
+                y_predicted = model(x)
+
+                loss_value += loss_function(y_predicted, y).item() * x.size(0)
+
+                predicted_labels = torch.max(y_predicted, 1)[1]
+                num_correct_samples += (predicted_labels == y).sum().item()
+                num_all_samples += y.size(0)
+
+            val_avg_loss = loss_value / num_all_samples
+            val_accuracy = num_correct_samples / num_all_samples
 
         logger.info(
             f"Epoch {epoch+1}/{config.epochs}: "
-            f"train loss: {train_avg_loss:.4f}, train accuracy: {train_accuracy:.4f}, "
-            f"val loss: {val_avg_loss:.4f}, val accuracy: {val_accuracy:.4f}"
+            f"train loss: {train_avg_loss:.4f}, "
+            f"train accuracy: {train_accuracy:.4f}, "
+            f"val loss: {val_avg_loss:.4f}, "
+            f"val accuracy: {val_accuracy:.4f}"
         )
 
         # Early stopping
@@ -112,4 +173,21 @@ def train_model(config: ExperimentConfig) -> Module:
 
 
 if __name__ == "__main__":
-    pass
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "config",
+        type=Path,
+        help="Path to config JSON file.",
+    )
+    args = parser.parse_args()
+
+    with open(args.config, "r", encoding="utf-8") as file_handle:
+        config = ExperimentConfig(**json.load(file_handle))
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    logger = logging.getLogger(__name__)
+
+    trained_model = train_model(config, logger)
