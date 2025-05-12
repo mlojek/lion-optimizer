@@ -1,108 +1,108 @@
 """
-Implementation of the Lion optimizer.
+Implementation of the Lion optimizer by Google Research.
 Publication: https://arxiv.org/pdf/2302.06675
+
+This implementation is a refactored implementation from:
+https://github.com/google/automl/blob/master/lion/lion_pytorch.py
+published under Apache 2.0 license.
 """
 
-from typing import List
+from typing import List, Tuple
 
 import torch
-from torch import Tensor
 from torch.optim.optimizer import Optimizer
 
 
 class Lion(Optimizer):
     """
-    Lion optimizer discovered by Google. TODO describe in detail
+    Lion gradient optimizer created by Google Research.
     """
 
     def __init__(
         self,
-        params: List[Tensor],
+        params: List[torch.Tensor],
         lr: float = 1e-4,
         *,
-        beta1: float = 0.9,
-        beta2: float = 0.99,
+        betas: Tuple[float, float] = (0.9, 0.99),
         weight_decay: float = 0.0,
     ):
         """
-        Class constructor.
+        Initialize the Optimizer.
 
         Args:
-            params (List[Tensor]): Model parameters to optimize.
-            lr (float): Learning rate of the optimizer.
-            beta1 (float): Weight used in model weights update, default 0.9 (from publication).
-            beta2 (float): Weight used in momentum update, default 0.99 (from publication).
-            weight_decay (float): Weight decay coefficient, default 0 (from publication).
+            params (List[torch.Tensor]): Parameters of model to optimize.
+            lr (float): Learning rate of the optimizer, default is 1e-4.
+            betas (Tuple[float, float]): Coefficients used for computing running averages
+                of gradient and its square, default values are 0.9, 0.99.
+            weight_decay (float): Weight decay coefficient, default is 0.0.
         """
 
-        if lr <= 0.0:
-            raise ValueError(
-                f"Learning rate has to be positive, got invalid value {lr}!"
-            )
+        if lr < 0.0:
+            raise ValueError(f"Invalid learning rate {lr}, value must be positive!")
 
-        if not 0.0 <= beta1 < 1.0:
-            raise ValueError(
-                f"Invalid beta1 value: {beta1}, expected value between 0.0 and 1.0"
-            )
+        for index, beta in enumerate(betas):
+            if not 0.0 <= beta < 1.0:
+                raise ValueError(
+                    f"Invalid beta value at index {index}: {beta}, "
+                    "value must be between 0.0 and 1.0!"
+                )
 
-        if not 0.0 <= beta2 < 1.0:
+        if not 0.0 <= weight_decay < 1.0:
             raise ValueError(
-                f"Invalid beta2 value: {beta2}, expected value between 0.0 and 1.0"
+                f"Invalid weight_decay {weight_decay}, ",
+                "value must be between 0.0 and 1.0!",
             )
 
         super().__init__(
             params,
             defaults={
                 "lr": lr,
-                "beta1": beta1,
-                "beta2": beta2,
+                "betas": betas,
                 "weight_decay": weight_decay,
             },
         )
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure: callable = None) -> float | None:
         """
         Performs a single optimization step.
-        Based on program 1 on page 2 of the publication.
 
         Args:
-            closure (callable, optional): A closure that reevaluates the model and returns the loss.
+            closure (callable): Optional, a closure that reevaluates the model
+                and returns the loss value.
 
         Returns:
-            the loss.
+            Union[float, None]: Loss value if closure was provided, else None.
         """
         loss = None
+
         if closure is not None:
             with torch.enable_grad():
                 loss = closure()
 
         for group in self.param_groups:
-            for p in group["params"]:
-                if p.grad is None:
+            for params in group["params"]:
+                if params.grad is None:
                     continue
 
-                # Perform stepweight decay
-                p.data.mul_(1 - group["lr"] * group["weight_decay"])
+                # Perform weights decay.
+                params.data.mul_(1 - group["lr"] * group["weight_decay"])
 
-                grad = p.grad
-                state = self.state[p]
+                gradient = params.grad
+                state = self.state[params]
 
-                # State initialization
+                # Initialize state.
                 if len(state) == 0:
-                    # Exponential moving average of gradient values
-                    state["exp_avg"] = torch.zeros_like(p)
+                    state["exponential_average"] = torch.zeros_like(params)
 
-                exp_avg = state["exp_avg"]
+                exponential_average = state["exponential_average"]
                 beta1, beta2 = group["betas"]
 
-                # Weight update
-                update = exp_avg * beta1 + grad * (1 - beta1)
+                # Update the weights.
+                update = exponential_average * beta1 + gradient * (1 - beta1)
+                params.add_(update.sign_(), alpha=-group["lr"])
 
-                # update = update + lr
-                p.add_(update.sign_(), alpha=-group["lr"])
-
-                # Decay the momentum running average coefficient
-                exp_avg.mul_(beta2).add_(grad, alpha=1 - beta2)
+                # Update the exponential average.
+                exponential_average.mul_(beta2).add_(gradient, alpha=1 - beta2)
 
         return loss
