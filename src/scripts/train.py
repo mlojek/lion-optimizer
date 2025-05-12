@@ -2,6 +2,8 @@
 Model training experiment script.
 """
 
+# pylint: disable=too-many-locals, too-many-statements
+
 import argparse
 import json
 import logging
@@ -12,10 +14,11 @@ import torch
 from torch import nn
 from torch.optim import SGD, AdamW
 from torch.utils.data import DataLoader, random_split
-from torchvision import datasets, transforms
+from torchvision import transforms
 from torchvision.datasets import FakeData
 from torchvision.datasets.imagenet import ImageNet
 from torchvision.models import resnet50, vit_b_16
+from tqdm import tqdm
 
 from ..config.data_model import (
     ExperimentConfig,
@@ -26,13 +29,12 @@ from ..optimizers.lion import Lion
 from ..utils.early_stopping import EarlyStopping
 
 
-# TODO CUDA support
 def train_model(
     config: ExperimentConfig,
     logger: Logger,
     *,
     random_seed: int = 42,
-    device: torch.device = 'cpu'
+    device: torch.device = "cpu",
 ) -> nn.Module:
     """
     Train the model according to the configuration.
@@ -46,7 +48,16 @@ def train_model(
     Returns:
         Module: Trained pyTorch model.
     """
-    # TODO random state for weights using random seed
+    # Set random seed for torch devices.
+    torch.manual_seed(random_seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(random_seed)
+
+    if torch.backends.mps.is_available():
+        torch.backends.mps.mps_set_random_seed(random_seed)
+
+    # Initialize the model.
     match config.model_name:
         case ModelName.RES_NET_50:
             model = resnet50()
@@ -54,9 +65,10 @@ def train_model(
             model = vit_b_16()
         case _:
             raise ValueError(f"Invalid model name {config.model_name.value}!")
-        
+
     model.to(device)
 
+    # Initialize the optimizer.
     match config.optimizer_name:
         case OptimizerName.SGD:
             optimizer_class = SGD
@@ -69,49 +81,33 @@ def train_model(
 
     optimizer = optimizer_class(model.parameters(), lr=config.learning_rate)
 
-    # TODO get imagenet dataset
-    # dataset = ImageNet()
-    dataset = datasets.FakeData(
+    # Get the dataset
+    # dataset = ImageNet()  # TODO get Imagenet dataset
+    dataset = FakeData(
         size=10000,
         image_size=(3, 224, 224),
         num_classes=1000,
         transform=transforms.ToTensor(),
     )
 
-    # Compute split lengths
-    val_size = int(0.2 * len(dataset))
-    train_size = len(dataset) - val_size
+    # Split dataset into train and test splits.
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
 
-    # Reproducible split
     generator = torch.Generator().manual_seed(random_seed)
     train_dataset, val_dataset = random_split(
         dataset, [train_size, val_size], generator=generator
     )
 
     # Create dataloaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.batch_size,
-        shuffle=True,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config.batch_size,
-        shuffle=False,
-    )
-
-    # TODO load ImageNet train
-    # TODO split train into train and val using random seed
-    # TODO shuffle using random state
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
+    # Loss function and early
     loss_function = nn.CrossEntropyLoss()
-
     early_stopping = EarlyStopping(**config.early_stopping.model_dump())
 
     for epoch in range(config.epochs):
-        print(f'started epoch {epoch}')
         # Training step
         model.train()
 
@@ -119,7 +115,10 @@ def train_model(
         train_correct_samples = 0
         train_num_samples = 0
 
-        for x_batch, y_batch in train_loader:
+        for x_batch, y_batch in tqdm(train_loader, desc="Training...", unit="batch"):
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+
             optimizer.zero_grad()
             y_predicted = model(x_batch)
             loss = loss_function(y_predicted, y_batch)
@@ -136,8 +135,6 @@ def train_model(
         train_avg_loss = train_loss / train_num_samples
         train_accuracy = train_correct_samples / train_num_samples
 
-        print('done train part')
-
         # Validation step
         with torch.no_grad():
             model.eval()
@@ -146,18 +143,26 @@ def train_model(
             num_correct_samples = 0
             num_all_samples = 0
 
-            for x, y in val_loader:
-                y_predicted = model(x)
+            for x_batch, y_batch in tqdm(
+                val_loader, desc="Validating...", unit="batch"
+            ):
+                x_batch = x_batch.to(device)
+                y_batch = y_batch.to(device)
 
-                loss_value += loss_function(y_predicted, y).item() * x.size(0)
+                y_predicted = model(x_batch)
+
+                loss_value += loss_function(y_predicted, y_batch).item() * x_batch.size(
+                    0
+                )
 
                 predicted_labels = torch.max(y_predicted, 1)[1]
-                num_correct_samples += (predicted_labels == y).sum().item()
-                num_all_samples += y.size(0)
+                num_correct_samples += (predicted_labels == y_batch).sum().item()
+                num_all_samples += y_batch.size(0)
 
             val_avg_loss = loss_value / num_all_samples
             val_accuracy = num_correct_samples / num_all_samples
 
+        # Log epoch metrics.
         logger.info(
             f"Epoch {epoch+1}/{config.epochs}: "
             f"train loss: {train_avg_loss:.4f}, "
@@ -166,7 +171,7 @@ def train_model(
             f"val accuracy: {val_accuracy:.4f}"
         )
 
-        # Early stopping
+        # Check for early stopping.
         early_stopping(val_avg_loss, model)
 
         if early_stopping.stop():
@@ -204,6 +209,6 @@ if __name__ == "__main__":
     else:
         device = torch.device("cpu")
 
-    logger.info('Using device %s', device)
+    logger.info("Using device %s", device)
 
     trained_model = train_model(config, logger, device=device)
