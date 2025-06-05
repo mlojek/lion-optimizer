@@ -9,10 +9,11 @@ import json
 import logging
 from logging import Logger
 from pathlib import Path
+from typing import Type, Tuple
 
 import torch
 from torch import nn
-from torch.optim import SGD, AdamW
+from torch.optim import SGD, AdamW, Optimizer
 from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import transforms
 from torchvision.datasets import FakeData, FashionMNIST
@@ -29,6 +30,61 @@ from ..optimizers.lion import Lion
 from ..utils.early_stopping import EarlyStopping
 
 
+def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
+    match optimizer_name:
+        case OptimizerName.SGD:
+            return SGD
+        case OptimizerName.ADAM:
+            return AdamW
+        case OptimizerName.LION:
+            return Lion
+    
+    raise ValueError(f"Invalid optimizer name {optimizer_name.value}!")
+
+def create_model(model_name: ModelName) -> nn.Module:
+    match config.model_name:
+        case ModelName.RES_NET_50:
+            return resnet50()
+        case ModelName.VIT_B_16:
+            return vit_b_16()
+
+    raise ValueError(f"Invalid model name {model_name.value}!")
+
+def load_fashion_mnist_trainval(train_ratio: float=0.8, random_seed: int=42) -> Tuple[DataLoader, DataLoader]:
+    # Load the dataset
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),           # Resize to 224x224
+        transforms.Grayscale(num_output_channels=3),  # Convert 1 channel to 3 channels
+        transforms.ToTensor(),                   # Convert to tensor and normalize to [0,1]
+        transforms.Normalize((0.5, 0.5, 0.5),     # Normalize 3 channels
+                            (0.5, 0.5, 0.5)),
+        # transforms.ToTensor(),
+    ])
+    dataset = FashionMNIST(root='./data', train=True, download=True, transform=transform)
+
+    # Split dataset into train and val splits.
+    train_size = int(train_ratio * len(dataset))
+    val_size = len(dataset) - train_size
+
+    generator = torch.Generator().manual_seed(random_seed)
+    train_dataset, val_dataset = random_split(
+        dataset, [train_size, val_size], generator=generator,
+    )
+
+    # Create dataloaders
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
+    return train_loader, val_loader
+
+def get_available_device() -> torch.device:
+    if torch.backends.mps.is_available():
+        return torch.device("mps")  # apple silicon
+    elif torch.cuda.is_available():
+        return torch.device("cuda")
+    else:
+        return torch.device("cpu")
+        
+
 def train_model(
     config: ExperimentConfig,
     logger: Logger,
@@ -37,16 +93,7 @@ def train_model(
     device: torch.device = "cpu",
 ) -> nn.Module:
     """
-    Train the model according to the configuration.
-
-    Args:
-        config (ExperimentConfig): Configuration of the experiment.
-        logger (Logger): Logger to log information to.
-        random_seed (int): The random seed to use for all stochastic processes.
-        device ()
-
-    Returns:
-        Module: Trained pyTorch model.
+    TODO
     """
     # Set random seed for torch devices.
     torch.manual_seed(random_seed)
@@ -58,59 +105,15 @@ def train_model(
         torch.backends.mps.mps_set_random_seed(random_seed)
 
     # Initialize the model.
-    match config.model_name:
-        case ModelName.RES_NET_50:
-            model = resnet50()
-        case ModelName.VIT_B_16:
-            model = vit_b_16()
-        case _:
-            raise ValueError(f"Invalid model name {config.model_name.value}!")
-
+    model = create_model(config.model_name)
     model.to(device)
 
     # Initialize the optimizer.
-    match config.optimizer_name:
-        case OptimizerName.SGD:
-            optimizer_class = SGD
-        case OptimizerName.ADAM:
-            optimizer_class = AdamW
-        case OptimizerName.LION:
-            optimizer_class = Lion
-        case _:
-            raise ValueError(f"Invalid optimizer name {config.optimizer_name.value}!")
-
+    optimizer_class = select_optimizer_class(config.optimizer_name)
     optimizer = optimizer_class(model.parameters(), lr=config.learning_rate)
 
-    # Get the dataset
-    # dataset = ImageNet()  # TODO get Imagenet dataset
-    dataset = FakeData(
-        size=10000,
-        image_size=(3, 224, 224),
-        num_classes=1000,
-        transform=transforms.ToTensor(),
-    )
-
-    # Define the transformation
-    transform = transforms.ToTensor()
-
-    # Load the dataset
-    train_dataset = FashionMNIST(root='./data', train=True, download=True, transform=transform)
-
-
-    # Split dataset into train and test splits.
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-
-    generator = torch.Generator().manual_seed(random_seed)
-    train_dataset, val_dataset = random_split(
-        dataset, [train_size, val_size], generator=generator
-    )
-
-    print(train_dataset)
-
-    # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
+    # load dataset
+    train_loader, val_loader = load_fashion_mnist_trainval()
 
     # Loss function and early
     loss_function = nn.CrossEntropyLoss()
@@ -211,12 +214,7 @@ if __name__ == "__main__":
     )
     logger = logging.getLogger(__name__)
 
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")  # apple silicon
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
+    device = get_available_device()
 
     logger.info("Using device %s", device)
 
