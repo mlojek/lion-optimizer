@@ -13,9 +13,9 @@ from pathlib import Path
 import torch
 from torch import nn
 from torch.optim import SGD, AdamW
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import transforms
-from torchvision.datasets import FakeData
+from torchvision.datasets import FakeData, FashionMNIST
 from torchvision.datasets.imagenet import ImageNet
 from torchvision.models import resnet50, vit_b_16
 from tqdm import tqdm
@@ -90,6 +90,13 @@ def train_model(
         transform=transforms.ToTensor(),
     )
 
+    # Define the transformation
+    transform = transforms.ToTensor()
+
+    # Load the dataset
+    train_dataset = FashionMNIST(root='./data', train=True, download=True, transform=transform)
+
+
     # Split dataset into train and test splits.
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
@@ -98,6 +105,8 @@ def train_model(
     train_dataset, val_dataset = random_split(
         dataset, [train_size, val_size], generator=generator
     )
+
+    print(train_dataset)
 
     # Create dataloaders
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
