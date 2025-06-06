@@ -9,15 +9,14 @@ import json
 import logging
 from logging import Logger
 from pathlib import Path
-from typing import Type, Tuple
+from typing import Tuple, Type
 
 import torch
 from torch import nn
 from torch.optim import SGD, AdamW, Optimizer
-from torch.utils.data import DataLoader, random_split, Dataset
+from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-from torchvision.datasets import FakeData, FashionMNIST
-from torchvision.datasets.imagenet import ImageNet
+from torchvision.datasets import FashionMNIST
 from torchvision.models import resnet50, vit_b_16
 from tqdm import tqdm
 
@@ -38,8 +37,9 @@ def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
             return AdamW
         case OptimizerName.LION:
             return Lion
-    
+
     raise ValueError(f"Invalid optimizer name {optimizer_name.value}!")
+
 
 def create_model(model_name: ModelName) -> nn.Module:
     match config.model_name:
@@ -50,17 +50,28 @@ def create_model(model_name: ModelName) -> nn.Module:
 
     raise ValueError(f"Invalid model name {model_name.value}!")
 
-def load_fashion_mnist_trainval(train_ratio: float=0.8, random_seed: int=42) -> Tuple[DataLoader, DataLoader]:
+
+def load_fashion_mnist_trainval(
+    train_ratio: float = 0.8,
+    random_seed: int = 42,
+) -> Tuple[DataLoader, DataLoader]:
     # Load the dataset
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),           # Resize to 224x224
-        transforms.Grayscale(num_output_channels=3),  # Convert 1 channel to 3 channels
-        transforms.ToTensor(),                   # Convert to tensor and normalize to [0,1]
-        transforms.Normalize((0.5, 0.5, 0.5),     # Normalize 3 channels
-                            (0.5, 0.5, 0.5)),
-        # transforms.ToTensor(),
-    ])
-    dataset = FashionMNIST(root='./data', train=True, download=True, transform=transform)
+    transform = transforms.Compose(
+        [
+            transforms.Resize((224, 224)),  # Resize to 224x224
+            transforms.Grayscale(
+                num_output_channels=3
+            ),  # Convert 1 channel to 3 channels
+            transforms.ToTensor(),  # Convert to tensor and normalize to [0,1]
+            transforms.Normalize(
+                (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)  # Normalize 3 channels
+            ),
+            # transforms.ToTensor(),
+        ]
+    )
+    dataset = FashionMNIST(
+        root="./data", train=True, download=True, transform=transform
+    )
 
     # Split dataset into train and val splits.
     train_size = int(train_ratio * len(dataset))
@@ -68,13 +79,16 @@ def load_fashion_mnist_trainval(train_ratio: float=0.8, random_seed: int=42) -> 
 
     generator = torch.Generator().manual_seed(random_seed)
     train_dataset, val_dataset = random_split(
-        dataset, [train_size, val_size], generator=generator,
+        dataset,
+        [train_size, val_size],
+        generator=generator,
     )
 
     # Create dataloaders
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
     return train_loader, val_loader
+
 
 def get_available_device() -> torch.device:
     if torch.backends.mps.is_available():
@@ -83,7 +97,7 @@ def get_available_device() -> torch.device:
         return torch.device("cuda")
     else:
         return torch.device("cpu")
-        
+
 
 def train_model(
     config: ExperimentConfig,
