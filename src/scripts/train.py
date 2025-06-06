@@ -30,6 +30,18 @@ from ..utils.early_stopping import EarlyStopping
 
 
 def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
+    '''
+    Given the name of the gradient optimizer return the class of the optimizer.
+
+    Args:
+        optimizer_name (OptimizerName): Name optimizer from the OptimizerName enumeration.
+
+    Returns:
+        Type[Optimizer]: Class of the optimizer.
+
+    Raises:
+        ValueError: When the name of the optimizer is invalid.
+    '''
     match optimizer_name:
         case OptimizerName.SGD:
             return SGD
@@ -42,6 +54,18 @@ def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
 
 
 def create_model(model_name: ModelName) -> nn.Module:
+    '''
+    Create a model of given architecture.
+
+    Args:
+        model_name (ModelName): Name of the desired model from ModelName enumeration.
+
+    Returns:
+        nn.Module: Initialized model of a given architecture.
+
+    Raises:
+        ValueError: When the name of the model is invalid.
+    '''
     match config.model_name:
         case ModelName.RES_NET_50:
             return resnet50()
@@ -91,6 +115,12 @@ def load_fashion_mnist_trainval(
 
 
 def get_available_device() -> torch.device:
+    '''
+    Detect the best performing available device.
+
+    Returns:
+        torch.device: The best available torch device.
+    '''
     if torch.backends.mps.is_available():
         return torch.device("mps")  # apple silicon
     elif torch.cuda.is_available():
@@ -107,9 +137,12 @@ def train_model(
     device: torch.device = "cpu",
 ) -> nn.Module:
     """
-    TODO
+    TODO docstring
+    TODO get loaders as arguments
+    TODO get model as argument
     """
     # Set random seed for torch devices.
+    # TODO remove? or make random seed optional
     torch.manual_seed(random_seed)
 
     if torch.cuda.is_available():
