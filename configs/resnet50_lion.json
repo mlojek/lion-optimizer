@@ -1,5 +1,5 @@
 {
-    "optimizer_name": "lion",
+    "optimizer_name": "Lion",
     "learning_rate": 0.01,
     "model_name": "res_net_50",
     "early_stopping": {

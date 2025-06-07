@@ -9,49 +9,17 @@ import json
 import logging
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Type
 
 import torch
 from torch import nn
-from torch.optim import SGD, AdamW, Optimizer
-from torch.utils.data import DataLoader, random_split
-from torchvision import transforms
-from torchvision.datasets import FashionMNIST
 from torchvision.models import resnet50, vit_b_16
 from tqdm import tqdm
 
-from ..config.data_model import (
-    ExperimentConfig,
-    ModelName,
-    OptimizerName,
-)
+from ..config.data_model import ExperimentConfig, ModelName
 from ..datasets.fashion_mnist import load_fashion_mnist_trainval
 from ..optimizers.lion import Lion
+from ..optimizers.select_optimizer import select_optimizer_class
 from ..utils.early_stopping import EarlyStopping
-
-
-def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
-    """
-    Given the name of the gradient optimizer return the class of the optimizer.
-
-    Args:
-        optimizer_name (OptimizerName): Name optimizer from the OptimizerName enumeration.
-
-    Returns:
-        Type[Optimizer]: Class of the optimizer.
-
-    Raises:
-        ValueError: When the name of the optimizer is invalid.
-    """
-    match optimizer_name:
-        case OptimizerName.SGD:
-            return SGD
-        case OptimizerName.ADAM:
-            return AdamW
-        case OptimizerName.LION:
-            return Lion
-
-    raise ValueError(f"Invalid optimizer name {optimizer_name.value}!")
 
 
 def create_model(model_name: ModelName) -> nn.Module:

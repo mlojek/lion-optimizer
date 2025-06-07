@@ -12,13 +12,13 @@ class OptimizerName(Enum):
     Enumeration of available graident optimizers.
     """
 
-    SGD = "sgd"
+    SGD = "SGD"
     "Stochastic gradient descent."
 
-    ADAM = "adam"
-    "State-of-the-art Adam optimizer."
+    ADAMW = "AdamW"
+    "State-of-the-art AdamW optimizer."
 
-    LION = "lion"
+    LION = "Lion"
     "Our Lion optimizer implementation."
 
 
