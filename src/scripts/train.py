@@ -25,12 +25,13 @@ from ..config.data_model import (
     ModelName,
     OptimizerName,
 )
+from ..datasets.fashion_mnist import load_fashion_mnist_trainval
 from ..optimizers.lion import Lion
 from ..utils.early_stopping import EarlyStopping
 
 
 def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
-    '''
+    """
     Given the name of the gradient optimizer return the class of the optimizer.
 
     Args:
@@ -41,7 +42,7 @@ def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
 
     Raises:
         ValueError: When the name of the optimizer is invalid.
-    '''
+    """
     match optimizer_name:
         case OptimizerName.SGD:
             return SGD
@@ -54,7 +55,7 @@ def select_optimizer_class(optimizer_name: OptimizerName) -> Type[Optimizer]:
 
 
 def create_model(model_name: ModelName) -> nn.Module:
-    '''
+    """
     Create a model of given architecture.
 
     Args:
@@ -65,7 +66,7 @@ def create_model(model_name: ModelName) -> nn.Module:
 
     Raises:
         ValueError: When the name of the model is invalid.
-    '''
+    """
     match config.model_name:
         case ModelName.RES_NET_50:
             return resnet50()
@@ -75,52 +76,13 @@ def create_model(model_name: ModelName) -> nn.Module:
     raise ValueError(f"Invalid model name {model_name.value}!")
 
 
-def load_fashion_mnist_trainval(
-    train_ratio: float = 0.8,
-    random_seed: int = 42,
-) -> Tuple[DataLoader, DataLoader]:
-    # Load the dataset
-    transform = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),  # Resize to 224x224
-            transforms.Grayscale(
-                num_output_channels=3
-            ),  # Convert 1 channel to 3 channels
-            transforms.ToTensor(),  # Convert to tensor and normalize to [0,1]
-            transforms.Normalize(
-                (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)  # Normalize 3 channels
-            ),
-            # transforms.ToTensor(),
-        ]
-    )
-    dataset = FashionMNIST(
-        root="./data", train=True, download=True, transform=transform
-    )
-
-    # Split dataset into train and val splits.
-    train_size = int(train_ratio * len(dataset))
-    val_size = len(dataset) - train_size
-
-    generator = torch.Generator().manual_seed(random_seed)
-    train_dataset, val_dataset = random_split(
-        dataset,
-        [train_size, val_size],
-        generator=generator,
-    )
-
-    # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
-    return train_loader, val_loader
-
-
 def get_available_device() -> torch.device:
-    '''
+    """
     Detect the best performing available device.
 
     Returns:
         torch.device: The best available torch device.
-    '''
+    """
     if torch.backends.mps.is_available():
         return torch.device("mps")  # apple silicon
     elif torch.cuda.is_available():
@@ -143,13 +105,13 @@ def train_model(
     """
     # Set random seed for torch devices.
     # TODO remove? or make random seed optional
-    torch.manual_seed(random_seed)
+    # torch.manual_seed(random_seed)
 
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(random_seed)
+    # if torch.cuda.is_available():
+    #     torch.cuda.manual_seed(random_seed)
 
-    if torch.backends.mps.is_available():
-        torch.backends.mps.mps_set_random_seed(random_seed)
+    # if torch.backends.mps.is_available():
+    #     torch.backends.mps.mps_set_random_seed(random_seed)
 
     # Initialize the model.
     model = create_model(config.model_name)
@@ -160,7 +122,7 @@ def train_model(
     optimizer = optimizer_class(model.parameters(), lr=config.learning_rate)
 
     # load dataset
-    train_loader, val_loader = load_fashion_mnist_trainval()
+    train_loader, val_loader = load_fashion_mnist_trainval(config.batch_size)
 
     # Loss function and early
     loss_function = nn.CrossEntropyLoss()
