@@ -12,36 +12,13 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torchvision.models import resnet50, vit_b_16
 from tqdm import tqdm
 
-from ..config.data_model import ExperimentConfig, ModelName
+from ..config.data_model import ExperimentConfig
 from ..datasets.fashion_mnist import load_fashion_mnist_trainval
-from ..optimizers.lion import Lion
+from ..models.create_model import create_model
 from ..optimizers.select_optimizer import select_optimizer_class
 from ..utils.early_stopping import EarlyStopping
-
-
-def create_model(model_name: ModelName) -> nn.Module:
-    """
-    Create a model of given architecture.
-
-    Args:
-        model_name (ModelName): Name of the desired model from ModelName enumeration.
-
-    Returns:
-        nn.Module: Initialized model of a given architecture.
-
-    Raises:
-        ValueError: When the name of the model is invalid.
-    """
-    match config.model_name:
-        case ModelName.RES_NET_50:
-            return resnet50()
-        case ModelName.VIT_B_16:
-            return vit_b_16()
-
-    raise ValueError(f"Invalid model name {model_name.value}!")
 
 
 def get_available_device() -> torch.device:
@@ -53,10 +30,11 @@ def get_available_device() -> torch.device:
     """
     if torch.backends.mps.is_available():
         return torch.device("mps")  # apple silicon
-    elif torch.cuda.is_available():
+
+    if torch.cuda.is_available():
         return torch.device("cuda")
-    else:
-        return torch.device("cpu")
+
+    return torch.device("cpu")
 
 
 def train_model(
