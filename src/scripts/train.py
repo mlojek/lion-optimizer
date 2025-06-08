@@ -26,7 +26,7 @@ def train_model(
     config: ExperimentConfig,
     logger: Logger,
     *,
-    random_seed: int = 42,
+    random_seed: int = None,
     device: torch.device = "cpu",
 ) -> nn.Module:
     """
@@ -34,15 +34,9 @@ def train_model(
     TODO get loaders as arguments
     TODO get model as argument
     """
-    # Set random seed for torch devices.
-    # TODO remove? or make random seed optional
-    # torch.manual_seed(random_seed)
-
-    # if torch.cuda.is_available():
-    #     torch.cuda.manual_seed(random_seed)
-
-    # if torch.backends.mps.is_available():
-    #     torch.backends.mps.mps_set_random_seed(random_seed)
+    # Set random seed if specified
+    if random_seed:
+        torch.manual_seed(random_seed)
 
     # Initialize the model.
     model = create_model(config.model_name)
@@ -52,10 +46,9 @@ def train_model(
     optimizer = create_optimizer(model, config)
 
     # load dataset
-    # TODO move outside
     train_loader, val_loader = load_fashion_mnist_trainval(config.batch_size)
 
-    # Loss function and early
+    # Loss function and early stopping
     loss_function = nn.CrossEntropyLoss()
     early_stopping = EarlyStopping(**config.early_stopping.model_dump())
 
