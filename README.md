@@ -23,8 +23,8 @@ python -m src.scripts.train configs/path/to/config.json
 | Model     | Optimizer | Config                                | Test accuracy | Test loss     |
 |-----------|-----------|---------------------------------------|---------------|---------------|
 | ResNet-50 | SGD       | [here](configs/resnet50_sgd.json)     | TODO          | TODO          |
-| ResNet-50 | AdamW     | [here](configs/resnet50_adamw.json)   | TODO          | TODO          |
-| ResNet-50 | Lion      | [here](configs/resnet50_lion.json)    | TODO          | TODO          |
+| ResNet-50 | AdamW     | [here](configs/resnet50_adamw.json)   | 88.18         | 0.3307        |
+| ResNet-50 | Lion      | [here](configs/resnet50_lion.json)    | 91.84         | 0.2272        |
 | Vit-B-16  | SGD       | [here](configs/vitb16_sgd.json)       | TODO          | TODO          |
 | Vit-B-16  | AdamW     | [here](configs/vitb16_adamw.json)     | TODO          | TODO          |
 | Vit-B-16  | Lion      | [here](configs/vitb16_lion.json)      | TODO          | TODO          |
