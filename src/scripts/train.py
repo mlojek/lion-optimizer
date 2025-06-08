@@ -17,7 +17,7 @@ from tqdm import tqdm
 from ..config.data_model import ExperimentConfig
 from ..datasets.fashion_mnist import load_fashion_mnist_trainval
 from ..models.create_model import create_model
-from ..optimizers.select_optimizer import select_optimizer_class
+from ..optimizers.create_optimizer import create_optimizer
 from ..utils.device_utils import get_available_device
 from ..utils.early_stopping import EarlyStopping
 
@@ -49,10 +49,10 @@ def train_model(
     model.to(device)
 
     # Initialize the optimizer.
-    optimizer_class = select_optimizer_class(config.optimizer_name)
-    optimizer = optimizer_class(model.parameters(), lr=config.learning_rate)
+    optimizer = create_optimizer(model, config)
 
     # load dataset
+    # TODO move outside
     train_loader, val_loader = load_fashion_mnist_trainval(config.batch_size)
 
     # Loss function and early

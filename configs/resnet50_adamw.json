@@ -1,6 +1,8 @@
 {
     "optimizer_name": "AdamW",
-    "learning_rate": 0.01,
+    "learning_rate": 0.003,
+    "betas": [0.9, 0.999],
+    "weight_decay": 0.1,
     "model_name": "res_net_50",
     "early_stopping": {
         "patience": 3,

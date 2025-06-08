@@ -3,6 +3,7 @@ Data model of the experiment configuration.
 """
 
 from enum import Enum
+from typing import Tuple
 
 from pydantic import BaseModel
 
@@ -56,6 +57,12 @@ class ExperimentConfig(BaseModel):
 
     learning_rate: float
     "Learning rate of the optimizer."
+
+    betas: Tuple[float, float] | None
+    "Beta value parameters for AdamW and Lion optimizers."
+
+    weight_decay: float
+    "weight decay value for optimizers."
 
     model_name: ModelName
     "Architecture of the deep learning model."
