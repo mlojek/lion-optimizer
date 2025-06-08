@@ -10,13 +10,13 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 
 
-def load_fashion_mnist_trainval(
+def load_fashion_mnist(
     batch_size: int,
     train_ratio: float = 0.8,
     random_seed: int = 42,
 ) -> Tuple[DataLoader, DataLoader]:
     """
-    Loads the train part of fashionMNIST dataset and splits into train and validation splits.
+    Loads the fashionMNIST dataset and splits trainval into train and validation splits.
     The dataset is resized to 3x224x224 to match the input shape of CV models.
 
     Args:
@@ -25,7 +25,7 @@ def load_fashion_mnist_trainval(
         random_seed (int): Random seed used in splitting the dataset.
 
     Returns:
-        Tuple[DataLoader, DataLoader]: Train and val dataloaders.
+        Tuple[DataLoader, DataLoader, DataLoader]: Train, val and test dataloaders.
 
     Raises:
         ValueError: When train_ratio is not in range 0.0 - 1.0.
@@ -43,25 +43,35 @@ def load_fashion_mnist_trainval(
         ]
     )
 
-    dataset = FashionMNIST(
-        root="./data",
+    dataset_root = "./data"
+
+    trainval_dataset = FashionMNIST(
+        root=dataset_root,
         train=True,
         download=True,
         transform=transform,
     )
 
-    train_size = int(train_ratio * len(dataset))
-    val_size = len(dataset) - train_size
+    test_dataset = FashionMNIST(
+        root=dataset_root,
+        train=False,
+        download=True,
+        transform=transform,
+    )
+
+    train_size = int(train_ratio * len(trainval_dataset))
+    val_size = len(trainval_dataset) - train_size
 
     generator = torch.Generator().manual_seed(random_seed)
 
     train_dataset, val_dataset = random_split(
-        dataset,
+        trainval_dataset,
         [train_size, val_size],
         generator=generator,
     )
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test_loader

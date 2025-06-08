@@ -12,10 +12,11 @@ from pathlib import Path
 
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ..config.data_model import ExperimentConfig
-from ..datasets.fashion_mnist import load_fashion_mnist_trainval
+from ..datasets.fashion_mnist import load_fashion_mnist
 from ..models.create_model import create_model
 from ..optimizers.create_optimizer import create_optimizer
 from ..utils.device_utils import get_available_device
@@ -24,16 +25,14 @@ from ..utils.early_stopping import EarlyStopping
 
 def train_model(
     config: ExperimentConfig,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
     logger: Logger,
     *,
     random_seed: int = None,
     device: torch.device = "cpu",
 ) -> nn.Module:
-    """
-    TODO docstring
-    TODO get loaders as arguments
-    TODO get model as argument
-    """
+    # TODO add docstring
     # Set random seed if specified
     if random_seed:
         torch.manual_seed(random_seed)
@@ -44,9 +43,6 @@ def train_model(
 
     # Initialize the optimizer.
     optimizer = create_optimizer(model, config)
-
-    # load dataset
-    train_loader, val_loader = load_fashion_mnist_trainval(config.batch_size)
 
     # Loss function and early stopping
     loss_function = nn.CrossEntropyLoss()
@@ -129,6 +125,34 @@ def train_model(
     return model
 
 
+def evaluate_model(
+    model: nn.Module, loss_function, dataloader: DataLoader, device: torch.device
+):
+    with torch.no_grad():
+        model.eval()
+
+        loss_value = 0
+        num_correct_samples = 0
+        num_all_samples = 0
+
+        for x_batch, y_batch in tqdm(dataloader, desc="Validating...", unit="batch"):
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+
+            y_predicted = model(x_batch)
+
+            loss_value += loss_function(y_predicted, y_batch).item() * x_batch.size(0)
+
+            predicted_labels = torch.max(y_predicted, 1)[1]
+            num_correct_samples += (predicted_labels == y_batch).sum().item()
+            num_all_samples += y_batch.size(0)
+
+        val_avg_loss = loss_value / num_all_samples
+        val_accuracy = num_correct_samples / num_all_samples
+
+    return val_avg_loss, val_accuracy
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -151,4 +175,20 @@ if __name__ == "__main__":
 
     logger.info("Using device %s", device)
 
-    trained_model = train_model(config, logger, device=device)
+    # load dataset
+    train_loader, val_loader, test_loader = load_fashion_mnist(config.batch_size)
+
+    trained_model = train_model(
+        train_loader,
+        val_loader,
+        config,
+        logger,
+        device=device,
+    )
+
+    print(evaluate_model(trained_model, nn.CrossEntropyLoss(), test_loader, device))
+
+    torch.save(
+        trained_model.state_dict(),
+        f"{config.model_name.value}_{config.optimizer_name.value}.pth",
+    )

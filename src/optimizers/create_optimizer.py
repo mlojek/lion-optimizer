@@ -2,11 +2,11 @@
 Function to create the optimizer based on the experiment config.
 """
 
+from torch import nn
 from torch.optim import SGD, AdamW, Optimizer
 
 from ..config.data_model import ExperimentConfig, OptimizerName
 from .lion import Lion
-from torch import nn
 
 
 def create_optimizer(model: nn.Module, config: ExperimentConfig) -> Optimizer:
@@ -45,4 +45,4 @@ def create_optimizer(model: nn.Module, config: ExperimentConfig) -> Optimizer:
                 weight_decay=config.weight_decay,
             )
 
-    raise ValueError(f"Invalid optimizer name {optimizer_name.value}!")
+    raise ValueError(f"Invalid optimizer name {config.optimizer_name.value}!")
