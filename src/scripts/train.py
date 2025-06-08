@@ -165,6 +165,7 @@ if __name__ == "__main__":
         val_loader,
         logger,
         device=device,
+        random_seed=0
     )
 
     print(evaluate_model(trained_model, nn.CrossEntropyLoss(), test_loader, device))
