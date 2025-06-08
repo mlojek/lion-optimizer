@@ -18,23 +18,8 @@ from ..config.data_model import ExperimentConfig
 from ..datasets.fashion_mnist import load_fashion_mnist_trainval
 from ..models.create_model import create_model
 from ..optimizers.select_optimizer import select_optimizer_class
+from ..utils.device_utils import get_available_device
 from ..utils.early_stopping import EarlyStopping
-
-
-def get_available_device() -> torch.device:
-    """
-    Detect the best performing available device.
-
-    Returns:
-        torch.device: The best available torch device.
-    """
-    if torch.backends.mps.is_available():
-        return torch.device("mps")  # apple silicon
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-
-    return torch.device("cpu")
 
 
 def train_model(
