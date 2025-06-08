@@ -76,32 +76,10 @@ def train_model(
         train_avg_loss = train_loss / train_num_samples
         train_accuracy = train_correct_samples / train_num_samples
 
-        # Validation step
-        with torch.no_grad():
-            model.eval()
-
-            loss_value = 0
-            num_correct_samples = 0
-            num_all_samples = 0
-
-            for x_batch, y_batch in tqdm(
-                val_loader, desc="Validating...", unit="batch"
-            ):
-                x_batch = x_batch.to(device)
-                y_batch = y_batch.to(device)
-
-                y_predicted = model(x_batch)
-
-                loss_value += loss_function(y_predicted, y_batch).item() * x_batch.size(
-                    0
-                )
-
-                predicted_labels = torch.max(y_predicted, 1)[1]
-                num_correct_samples += (predicted_labels == y_batch).sum().item()
-                num_all_samples += y_batch.size(0)
-
-            val_avg_loss = loss_value / num_all_samples
-            val_accuracy = num_correct_samples / num_all_samples
+        # validation loss
+        val_avg_loss, val_accuracy = evaluate_model(
+            model, loss_function, val_loader, device
+        )
 
         # Log epoch metrics.
         logger.info(
@@ -126,7 +104,10 @@ def train_model(
 
 
 def evaluate_model(
-    model: nn.Module, loss_function, dataloader: DataLoader, device: torch.device
+    model: nn.Module,
+    loss_function,
+    dataloader: DataLoader,
+    device: torch.device,
 ):
     with torch.no_grad():
         model.eval()
@@ -147,10 +128,10 @@ def evaluate_model(
             num_correct_samples += (predicted_labels == y_batch).sum().item()
             num_all_samples += y_batch.size(0)
 
-        val_avg_loss = loss_value / num_all_samples
-        val_accuracy = num_correct_samples / num_all_samples
+        average_loss = loss_value / num_all_samples
+        accuracy = num_correct_samples / num_all_samples
 
-    return val_avg_loss, val_accuracy
+    return average_loss, accuracy
 
 
 if __name__ == "__main__":
@@ -179,9 +160,9 @@ if __name__ == "__main__":
     train_loader, val_loader, test_loader = load_fashion_mnist(config.batch_size)
 
     trained_model = train_model(
+        config,
         train_loader,
         val_loader,
-        config,
         logger,
         device=device,
     )
