@@ -1,7 +1,5 @@
 # Lion optimizer
-TODO introduction
-
-Implementation of LION gradient optimizer from [this publication by Google](https://arxiv.org/pdf/2302.06675).
+Lion gradient optimizer is a novel gradient optimizer discovered by Google Brain in [this publication](https://arxiv.org/pdf/2302.06675). It works by calculating the gradient update with momentum, then only keeping the sign of the update, and then calculating the final weights update by multiplying the update value by the learning rate.
 
 ## Experiment plan
 To compare the performance of my implementation, I wanted to reproduce the experiments from the original publication. In those, AdamW and Lion were trained and evaluated on ImageNet dataset three times and then compared on the resulting classfication accuracies.
